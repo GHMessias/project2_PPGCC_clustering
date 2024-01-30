@@ -15,7 +15,7 @@ from sklearn.preprocessing import StandardScaler
 import torch
 
 
-def generate_connectivity_matrix(positive_samples, labels, n):
+def generate_connectivity_matrix(positive_samples, positive_labels, n: int):
     '''
     retorna um array nxn de conectividade entre os vértices de mesmo rótulo
 
@@ -29,11 +29,13 @@ def generate_connectivity_matrix(positive_samples, labels, n):
     '''
 
     src = list()
+    # positive_samples = [int(x) for x in positive_samples]
+    # positive_labels = [int(x) for x in positive_labels]
     tgt = list()
 
-    for label in np.unique(labels):
-        for x in positive_samples[labels == label]:
-            for y in positive_samples[labels == label]:
+    for label in np.unique(positive_labels):
+        for x in positive_samples[positive_labels == label]:
+            for y in positive_samples[positive_labels == label]:
                 src.append(x)
                 tgt.append(y)
 
@@ -183,28 +185,63 @@ def PlotaDados(dados, labels, metodo):
 
 #     return return_list
     
-def find_positives(X, positive_labels, positive_indices, k=1):
-    # Criar uma matriz de retorno onde todo mundo é -1, exceto os índices dos pontos de treino
-    return_list = torch.full((X.shape[0],), 0)
-    for element, label in list(zip(positive_indices, positive_labels)):
-        return_list[element] = label 
+def criar_mascara(indices, tamanho):
+    mascara = [False] * tamanho  # Inicializa a máscara com False para todos os índices
 
-    # Criar uma matriz de treino usando os índices dos pontos de treino
-    train_points = X[positive_indices].detach().numpy()
-    train_labels = positive_labels
+    for indice in indices:
+        if indice < tamanho:
+            mascara[indice] = True  # Define como True apenas os índices presentes na lista
 
+    return mascara
+    
+def find_neighbors(X, positive_labels, positive_indices, k=1):
+    '''
+    X: features
+    positive_labels = classes dos elementos de treino
+    positive_indices = indices dos elementos de treino
+    '''
+
+
+    candidate_idx = []
+    candidate_labels = []
+        
+    # conjunto sem os hard labels
+    hard_labels = np.array(criar_mascara(positive_indices,len(X)))
+    train_points = X[~hard_labels].detach().numpy()
+    
     # Criar o modelo k-NN
     knn_model = NearestNeighbors(n_neighbors=k)
     knn_model.fit(train_points)
+    
+    for i in range(len(positive_labels)):
+        neighbor = knn_model.kneighbors(X[positive_indices[i]].detach().numpy().reshape(1, -1),return_distance=False)
+        neighbor_label = positive_labels[i]
 
-    # Encontrar os pontos mais próximos para todos os pontos na matriz de características
-    distances, indices = knn_model.kneighbors(X.detach().numpy())
+        candidate_idx.append(neighbor.item())
+        candidate_labels.append(neighbor_label.item())
 
-    # Atribuir rótulos aos pontos mais próximos
-    for label, unlabeled_indices in zip(train_labels, indices):
-        return_list[unlabeled_indices] = label
+    return candidate_idx,candidate_labels
+    # # Criar uma matriz de retorno onde todo mundo é -1, exceto os índices dos pontos de treino
+    # return_list = torch.full((X.shape[0],), 0)
+    # for element, label in list(zip(positive_indices, positive_labels)):
+    #     return_list[element] = label 
 
-    return return_list
+    # # Criar uma matriz de treino usando os índices dos pontos de treino
+    # train_points = X[positive_indices].detach().numpy()
+    # train_labels = positive_labels
+
+    # # Criar o modelo k-NN
+    # knn_model = NearestNeighbors(n_neighbors=k)
+    # knn_model.fit(train_points)
+
+    # # Encontrar os pontos mais próximos para todos os pontos na matriz de características
+    # distances, indices = knn_model.kneighbors(X.detach().numpy())
+
+    # # Atribuir rótulos aos pontos mais próximos
+    # for label, unlabeled_indices in zip(train_labels, indices):
+    #     return_list[unlabeled_indices] = label
+
+    # return return_list
 
 
 

@@ -34,7 +34,7 @@ class AE(torch.nn.Module):
             torch.nn.Linear(64, 128),
             torch.nn.ReLU(),
             torch.nn.Linear(128, 28 * 28),
-            torch.nn.Sigmoid()
+            torch.nn.ReLU()
         )
  
     def forward(self, x):
