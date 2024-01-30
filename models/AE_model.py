@@ -1,43 +1,34 @@
-import torch.nn
+import torch.nn as nn
 
-class AE(torch.nn.Module):
+class Autoencoder(nn.Module):
     def __init__(self):
-        super().__init__()
-         
-        # Building an linear encoder with Linear
-        # layer followed by Relu activation function
-        # 784 ==> 9
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Linear(28 * 28, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 36),
-            torch.nn.ReLU(),
-            torch.nn.Linear(36, 18),
-            torch.nn.ReLU(),
-            torch.nn.Linear(18, 2)
+        super(Autoencoder, self).__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Conv2d(16, 8, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.Flatten()
+        )
+        self.decoder = nn.Sequential(
+            nn.Unflatten(1, (8,7,7)),
+            nn.ConvTranspose2d(8, 16, 
+                               kernel_size=3, 
+                               stride=2, 
+                               padding=1, 
+                               output_padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 3, 
+                               kernel_size=3, 
+                               stride=2, 
+                               padding=1, 
+                               output_padding=1),
+            nn.Sigmoid()
         )
          
-        # Building an linear decoder with Linear
-        # layer followed by Relu activation function
-        # The Sigmoid activation function
-        # outputs the value between 0 and 1
-        # 9 ==> 784
-        self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(2, 18),
-            torch.nn.ReLU(),
-            torch.nn.Linear(18, 36),
-            torch.nn.ReLU(),
-            torch.nn.Linear(36, 64),
-            torch.nn.ReLU(),
-            torch.nn.Linear(64, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 28 * 28),
-            torch.nn.ReLU()
-        )
- 
     def forward(self, x):
-        encoded = self.encoder(x)
-        decoded = self.decoder(encoded)
-        return decoded
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
