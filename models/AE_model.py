@@ -11,6 +11,7 @@ class Autoencoder(nn.Module):
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Flatten()
+            # MLP
         )
         self.decoder = nn.Sequential(
             nn.Unflatten(1, (8,7,7)),
