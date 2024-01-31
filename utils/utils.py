@@ -1,19 +1,14 @@
 import numpy as np
 from scipy.sparse import csr_matrix
-import pandas as pd
 import numpy as np
-import scipy as sp
-import matplotlib.pyplot as plt
-import sklearn.neighbors as sknn
-import sklearn.utils.graph as sksp
-from sklearn.cluster import KMeans
 from numpy.linalg import norm
 from sklearn.metrics.cluster import rand_score
 from sklearn.metrics.cluster import calinski_harabasz_score
 from sklearn.neighbors import NearestNeighbors
-from sklearn.preprocessing import StandardScaler
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
+from scipy.spatial.distance import cdist
+import networkx as nx
 
 def generate_connectivity_matrix(positive_samples, positive_labels, n: int):
     '''
@@ -83,9 +78,10 @@ def find_neighbors(X, positive_labels, positive_indices, k=1):
     return candidate_idx,candidate_labels
 
 class CustomDataset(Dataset):
-    def __init__(self, dataframe, transform=None):
+    def __init__(self, dataframe, transform=None, return_label = False):
         self.dataframe = dataframe
         self.transform = transform
+        self.return_label = return_label
 
     def __len__(self):
         return len(self.dataframe)
@@ -93,11 +89,16 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.dataframe.iloc[idx, 0]  # Assumindo que a coluna 0 contém os caminhos das imagens
         image = Image.open(img_path).convert('RGB')
+        label = self.dataframe.label
 
         if self.transform:
             image = self.transform(image)
 
-        return image
+        if self.return_label:
+            return image, label
+        else:
+            return image
+        
     
 def must_link(training_indices, training_labels):
     must_link_list = list()
@@ -116,3 +117,44 @@ def cannot_link(training_indices, training_labels):
                 cannot_link_list.append((training_indices[index1], training_indices[index2]))
 
     return cannot_link_list
+
+
+def epsilon_graph(X, epsilon):
+    # Calcula as distâncias euclidianas entre os pontos em X
+    distances = cdist(X, X)
+
+    # Cria um grafo não direcionado
+    graph = nx.Graph()
+
+    # Adiciona nós ao grafo
+    num_nodes = X.shape[0]
+    graph.add_nodes_from(range(num_nodes))
+
+    # Adiciona arestas ao grafo se a distância for menor que epsilon
+    for i in range(num_nodes):
+        for j in range(i + 1, num_nodes):
+            if distances[i, j] < epsilon:
+                graph.add_edge(i, j)
+
+    return graph
+
+def knn_graph(X, k):
+    # Use NearestNeighbors para encontrar os k vizinhos mais próximos
+    nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+    distances, indices = nbrs.kneighbors(X)
+
+    # Crie um grafo não direcionado
+    graph = nx.Graph()
+
+    # Adicione nós ao grafo
+    num_nodes = X.shape[0]
+    graph.add_nodes_from(range(num_nodes))
+
+    # Adicione arestas ao grafo com base nos vizinhos mais próximos
+    for i in range(num_nodes):
+        for j in indices[i]:
+            if i != j:  # Não adicione auto-arestas
+                graph.add_edge(i, j)
+
+    return graph
+        
